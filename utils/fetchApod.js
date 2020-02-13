@@ -3,7 +3,7 @@ import fetch from "isomorphic-unfetch";
 const API_KEY = "ioafLpIuFKhsNMgz3s5KpfyQ9LjzcztOK1UqAHCq";
 const BASE_URL = "https://api.nasa.gov/planetary/apod";
 
-export default function fetchApod({ date } = {}) {
+export default function fetchApod(date = null) {
   const url = new URL(BASE_URL);
   const params = {
     api_key: API_KEY,

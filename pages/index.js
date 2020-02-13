@@ -1,10 +1,12 @@
 import { useMemo, useState, useEffect } from "react";
-import fetchApod from "../utils/fetchApod";
 import styled from "styled-components";
 import Head from "next/head";
-import { format, parseISO, isValid, isBefore, isAfter } from "date-fns";
 import { useRouter } from "next/router";
+import useSWR from "swr";
 
+import { format, parseISO, isValid, isBefore, isAfter } from "date-fns";
+
+import fetchApod from "../utils/fetchApod";
 import DatePicker from "../components/DatePicker";
 import DetailView from "../components/DetailView";
 
@@ -25,12 +27,11 @@ const PageTitle = styled.h1`
   text-align: center;
 `;
 
-function HomePage({ data = {}, error }) {
+function HomePage({ data: initialData = {}, error }) {
   const FORMAT = "M/d/yyyy";
   const router = useRouter();
   const { query } = router;
 
-  const { title } = data;
   const date = useMemo(() => {
     let result = new Date();
 
@@ -59,15 +60,21 @@ function HomePage({ data = {}, error }) {
       }
 
       if (isBefore(date, MAX_DATE) && isAfter(date, MIN_DATE)) {
-        router.push({
-          pathname: "/",
-          query: {
-            date: format(date, "yyyy-MM-dd")
-          }
+        const url = date ? `/?date=${format(date, "yyyy-MM-dd")}` : "/";
+        router.push(url, url, {
+          shallow: true
         });
       }
     } catch (err) {}
   };
+
+  const { data } = useSWR(query.date, fetchApod, {
+    initialData:
+      initialData && (!query.date || initialData.date === query.date)
+        ? initialData
+        : null
+  });
+  const { title } = data || {};
 
   return (
     <Container>
@@ -104,7 +111,7 @@ function HomePage({ data = {}, error }) {
 }
 
 HomePage.getInitialProps = async ({ query }) => {
-  const data = await fetchApod(query);
+  const data = await fetchApod(query.date);
 
   if (data.code === 400 || data.code === 500) {
     return { error: { message: data.msg } };
