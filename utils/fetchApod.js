@@ -16,7 +16,5 @@ export default function fetchApod(date = null) {
 
   url.search = new URLSearchParams(params).toString();
 
-  // console.log(url.toString());
-
   return fetch(url.toString()).then(r => r.json());
 }

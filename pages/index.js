@@ -1,10 +1,19 @@
 import { useMemo, useState, useEffect } from "react";
+import { usePreviousDistinct } from "react-use";
 import styled from "styled-components";
 import Head from "next/head";
 import { useRouter } from "next/router";
 import useSWR from "swr";
 
-import { format, parseISO, isValid, isBefore, isAfter } from "date-fns";
+import {
+  format,
+  formatISO,
+  parseISO,
+  isValid,
+  isBefore,
+  isAfter,
+  isSameDay
+} from "date-fns";
 
 import fetchApod from "../utils/fetchApod";
 import DatePicker from "../components/DatePicker";
@@ -12,6 +21,10 @@ import DetailView from "../components/DetailView";
 
 const MIN_DATE = parseISO("1995-06-16");
 const MAX_DATE = new Date();
+
+const isDateValid = date =>
+  isBefore(date, MAX_DATE) &&
+  (isSameDay(date, MIN_DATE) || isAfter(date, MIN_DATE));
 
 const Container = styled.div`
   display: grid;
@@ -23,9 +36,12 @@ const Container = styled.div`
 `;
 
 const PageTitle = styled.h1`
-  font-size: 1.5rem;
+  font-size: 2rem;
+  font-weight: bold;
   text-align: center;
 `;
+
+const formatDate = x => formatISO(x, { representation: "date" });
 
 function HomePage({ data: initialData = {}, error }) {
   const FORMAT = "M/d/yyyy";
@@ -46,7 +62,6 @@ function HomePage({ data: initialData = {}, error }) {
   }, [query.date]);
 
   const [dateField, setDateField] = useState(date);
-
   useEffect(() => {
     try {
       setDateField(format(parseISO(query.date), FORMAT));
@@ -59,8 +74,8 @@ function HomePage({ data: initialData = {}, error }) {
         date = parseISO(date);
       }
 
-      if (isBefore(date, MAX_DATE) && isAfter(date, MIN_DATE)) {
-        const url = date ? `/?date=${format(date, "yyyy-MM-dd")}` : "/";
+      if (isDateValid(date)) {
+        const url = date ? `/?date=${formatDate(date)}` : "/";
         router.push(url, url, {
           shallow: true
         });
@@ -68,18 +83,25 @@ function HomePage({ data: initialData = {}, error }) {
     } catch (err) {}
   };
 
-  const { data } = useSWR(query.date, fetchApod, {
+  const { data: fetchedData } = useSWR(formatDate(date), fetchApod, {
     initialData:
-      initialData && (!query.date || initialData.date === query.date)
+      initialData && (!date || initialData.date === formatDate(date))
         ? initialData
         : null
   });
+  const previousData = usePreviousDistinct(fetchedData);
+  const data = fetchedData || previousData;
+  const loading = !fetchedData;
+
   const { title } = data || {};
 
   return (
     <Container>
       <Head>
-        <title>{title} | NASA Astronomy Picture Viewer</title>
+        <title>
+          {title && `${title} | `}
+          NASA Astronomy Picture Viewer
+        </title>
       </Head>
 
       <PageTitle>NASA Astronomy Picture Viewer</PageTitle>
@@ -90,6 +112,7 @@ function HomePage({ data: initialData = {}, error }) {
         minDate={MIN_DATE}
         maxDate={MAX_DATE}
         value={dateField}
+        isDateValid={isDateValid}
         goToDate={goToDate}
         onDayChange={(date, modifiers, dayPickerInput) => {
           const input = dayPickerInput.getInput();
@@ -103,19 +126,20 @@ function HomePage({ data: initialData = {}, error }) {
         }}
       />
 
-      {error && <p>{error.message}</p>}
+      {data && data.msg && <p>{data.msg}</p>}
 
-      {data && <DetailView data={data} />}
+      {data && !data.msg && <DetailView data={data} loading={loading} />}
     </Container>
   );
 }
 
 HomePage.getInitialProps = async ({ query }) => {
-  const data = await fetchApod(query.date);
+  let date = parseISO(query.date);
+  date = isDateValid(date) ? date : new Date();
+  const isoDate = formatDate(date);
 
-  if (data.code === 400 || data.code === 500) {
-    return { error: { message: data.msg } };
-  }
+  const data = await fetchApod(isoDate);
+  query.date = isoDate;
 
   return { data };
 };

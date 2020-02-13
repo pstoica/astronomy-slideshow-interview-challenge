@@ -2,15 +2,7 @@ import { DateUtils } from "react-day-picker";
 import DayPickerInput from "react-day-picker/DayPickerInput";
 import styled from "styled-components";
 
-import {
-  parse,
-  format,
-  addDays,
-  parseISO,
-  isValid,
-  isBefore,
-  isAfter
-} from "date-fns";
+import { parse, format, addDays } from "date-fns";
 
 const Container = styled.div`
   background: black;
@@ -27,6 +19,7 @@ const Container = styled.div`
 
     &:disabled {
       opacity: 0.5;
+      cursor: not-allowed;
     }
   }
 
@@ -74,21 +67,14 @@ const Container = styled.div`
   }
 `;
 
-const OffsetButton = ({
-  date,
-  offset,
-  onClick,
-  children,
-  minDate,
-  maxDate
-}) => {
+const OffsetButton = ({ date, offset, onClick, children, isDateValid }) => {
   const newDate = addDays(date, offset);
-  const isValid = isAfter(newDate, minDate) && isBefore(newDate, maxDate);
+  const isValid = isDateValid(date);
 
   return (
     <button onClick={() => onClick(newDate)} type="button" disabled={!isValid}>
       {offset < 0 && "‹ "}
-      {children} {format(newDate, "MM/dd")}
+      {children} {format(newDate, "M/d")}
       {offset > 0 && " ›"}
     </button>
   );
@@ -96,9 +82,11 @@ const OffsetButton = ({
 
 function parseDate(str, format, locale) {
   const parsed = parse(str, format, new Date(), { locale });
+
   if (DateUtils.isDate(parsed)) {
     return parsed;
   }
+
   return undefined;
 }
 
@@ -112,6 +100,7 @@ function DatePicker({
   minDate,
   maxDate,
   onDayChange,
+  isDateValid,
   goToDate,
   format
 }) {
@@ -119,6 +108,7 @@ function DatePicker({
     date,
     minDate,
     maxDate,
+    isDateValid,
     onClick: goToDate
   };
   return (
@@ -126,7 +116,7 @@ function DatePicker({
       <form
         onSubmit={e => {
           e.preventDefault();
-          goToDate(dateField);
+          goToDate(value);
         }}
       >
         <OffsetButton {...offsetButtonProps} offset={-1} />
@@ -143,6 +133,7 @@ function DatePicker({
           }}
           value={value}
           onDayChange={onDayChange}
+          keepFocus={false}
         />
 
         <OffsetButton {...offsetButtonProps} offset={1} />

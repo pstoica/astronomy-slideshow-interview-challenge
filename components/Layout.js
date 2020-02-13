@@ -5,7 +5,6 @@ import reset from "styled-reset";
 const GlobalStyle = createGlobalStyle`
   ${reset}
 
-
   body {
     font-family: 'Space Mono', monospace;
     background: black;
